@@ -101,6 +101,35 @@ class ConditionListView(ListAPIView):
     serializer_class = ConditionSerializer
 
 
+class ConditionBySymptoms(ListAPIView):
+    serializer_class = ConditionSerializer
+    queryset = Condition.objects.all()
+    def get(self, request, *args, **kwargs):
+        symptom_ids = request.query_params.get('symptom_ids')
+        
+        if not symptom_ids:
+            return Response({"error": "No symptom IDs provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            symptom_ids = [int(id) for id in symptom_ids.split(',')]
+        except ValueError:
+            return Response({"error": "Invalid symptom ID format"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get conditions for each symptom ID and find the intersection
+        symptom_conditions = []
+        for symptom_id in symptom_ids:
+            conditions = Condition.objects.filter(symptoms__id=symptom_id)
+            symptom_conditions.append(set(conditions))
+
+        if symptom_conditions:
+            common_conditions = set.intersection(*symptom_conditions)
+        else:
+            common_conditions = Condition.objects.none()
+
+        serializer = ConditionSerializer(common_conditions, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class ConditionCreateView(CreateAPIView):
     queryset = Condition.objects.all()
     serializer_class = ConditionSerializer
@@ -110,6 +139,14 @@ class SymptomListView(ListAPIView):
     queryset = Symptoms.objects.all()
     serializer_class = SymptomSerializer
 
+class SymptomCreateView(CreateAPIView):
+    queryset = Symptoms.objects.all()
+    serializer_class = SymptomSerializer
+
+class SymptomRetrieveView(RetrieveAPIView):
+    queryset = Symptoms.objects.all()
+    serializer_class = SymptomSerializer2
+    lookup_field = 'id'
 
 class ChangePasswordView(UpdateAPIView):
     """

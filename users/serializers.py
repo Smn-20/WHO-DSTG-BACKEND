@@ -37,6 +37,21 @@ class SymptomSerializer(serializers.ModelSerializer):
         model = Symptoms
         fields = '__all__'
 
+class SymptomSerializer2(serializers.ModelSerializer):
+    class Meta:
+        model = Symptoms
+        fields = ('id', 'name', 'conditions', 'further_management', 'referral_criteria')
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if data['conditions'] is not None:
+            conditions = []
+            for condition in data['conditions']:
+                obj = ConditionSerializer(
+                Condition.objects.get(pk=condition)).data
+                conditions.append(obj)
+            data['conditions']=conditions
+        return data
+
 class ChangePasswordSerializer(serializers.Serializer):
     model = User
     user_id = serializers.CharField(required=True)
