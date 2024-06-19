@@ -20,8 +20,8 @@ class Command(BaseCommand):
             # Create the Symptoms object
             symptom = Symptoms.objects.create(
                 name=row['name'],
-                further_management=row['further_management'],
-                referral_criteria=row['referral_criteria']
+                further_management="",
+                referral_criteria=""
             )
             
             # Get the list of condition IDs from the comma-separated string
