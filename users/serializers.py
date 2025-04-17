@@ -26,11 +26,28 @@ class RoleSerializer(serializers.ModelSerializer):
         model = Role
         fields = '__all__'
 
+class DepartmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Department
+        fields = '__all__'
+
 
 class ConditionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Condition
         fields = '__all__'
+
+class AttributeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Attribute
+        fields = ['id', 'title', 'content']
+
+class ConditionSerializer2(serializers.ModelSerializer):
+    attributes = AttributeSerializer(many=True, read_only=True)  # uses related_name='attributes'
+
+    class Meta:
+        model = Condition
+        fields = ['id', 'name', 'department', 'attributes']
 
 class SymptomSerializer(serializers.ModelSerializer):
     class Meta:
@@ -51,6 +68,25 @@ class SymptomSerializer2(serializers.ModelSerializer):
                 conditions.append(obj)
             data['conditions']=conditions
         return data
+
+class CommentSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField(read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = ['id', 'user', 'content', 'created_at']
+
+class ForumPostSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField(read_only=True)
+    comments = CommentSerializer(many=True, read_only=True)
+    likes_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ForumPost
+        fields = ['id', 'user', 'content', 'created_at', 'comments', 'likes_count']
+
+    def get_likes_count(self, obj):
+        return obj.likes.count()
 
 class ChangePasswordSerializer(serializers.Serializer):
     model = User

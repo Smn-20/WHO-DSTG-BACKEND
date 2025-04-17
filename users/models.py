@@ -72,20 +72,39 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.active
 
 
-class Condition(models.Model):
+class Department(models.Model):
     name = models.CharField(max_length=250, unique=True)
-    description = models.TextField(null=True, blank=True)
-    causes = models.TextField(null=True, blank=True)
-    symptoms_features = models.TextField(null=True, blank=True)
-    investigations = models.TextField(null=True, blank=True)
-    treatments = models.TextField(null=True, blank=True)
-    surgical_options = models.TextField(null=True, blank=True)
-    preventive_measures = models.TextField(null=True, blank=True)
-    emergency_management = models.TextField(null=True, blank=True)
-    referral_criteria = models.TextField(null=True, blank=True)
-    prognosis = models.TextField(null=True, blank=True)
+    
     def __str__(self):
         return str(self.id) + '-' +self.name
+        
+
+class Condition(models.Model):
+    name = models.CharField(max_length=255,unique=True)
+    department = models.ForeignKey(Department, null= True,blank=True, on_delete=models.SET_NULL)
+
+    def __str__(self):
+        return self.name
+
+
+class Attribute(models.Model):
+    condition = models.ForeignKey(Condition, related_name='attributes', on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+
+    def __str__(self):
+        return f"{self.title} for {self.condition.name}"
+
+
+class AttributeImage(models.Model):
+    class ImageType(models.TextChoices):
+        TABLE = "TABLE", "Table"
+        FIGURE = "FIGURE", "Figure"
+
+    attribute = models.ForeignKey(Attribute, related_name='images', on_delete=models.CASCADE)
+    title = models.CharField(max_length=255, null=True, blank=True)
+    type = models.CharField(max_length=255, null=True, blank=True, choices=ImageType.choices)
+    image = models.ImageField(upload_to='attribute_images/')
 
 
 class Symptoms(models.Model):
@@ -96,3 +115,25 @@ class Symptoms(models.Model):
     
     def __str__(self):
         return str(self.id) + '-' +self.name
+
+
+class ForumPost(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='forum_posts')
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email}'s post"
+
+class Comment(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments')
+    post = models.ForeignKey(ForumPost, on_delete=models.CASCADE, related_name='comments')
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Like(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='likes')
+    post = models.ForeignKey(ForumPost, on_delete=models.CASCADE, related_name='likes')
+
+    class Meta:
+        unique_together = ('user', 'post')
