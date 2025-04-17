@@ -176,6 +176,28 @@ class DepartmentListView(ListAPIView):
 
         return Response(response, status=status.HTTP_200_OK)
 
+class DepartmentCreateView(CreateAPIView):
+    queryset = Department.objects.all()
+    serializer_class = DepartmentSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            response = {
+                'status': True,
+                'message': 'Department created successfully',
+                'data': serializer.data
+            }
+            return Response(response, status=status.HTTP_201_CREATED)
+        
+        return Response({
+            'status': False,
+            'message': 'Department creation failed',
+            'data': serializer.errors
+        }, status=status.HTTP_201_CREATED)
+
 
 class ConditionBySymptoms(ListAPIView):
     serializer_class = ConditionSerializer
@@ -276,7 +298,7 @@ class ForumPostListCreateView(APIView):
     def get(self, request):
         posts = ForumPost.objects.all().order_by('-created_at')
         serializer = ForumPostSerializer(posts, many=True)
-        return custom_response(data=serializer.data)
+        return custom_response(data=serializer.data, message="Posts retrieved successfully.")
 
     def post(self, request):
         post = ForumPost.objects.create(user=request.user, content=request.data.get('content'))
