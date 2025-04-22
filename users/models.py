@@ -14,7 +14,7 @@ class Role(models.Model):
 
 
 class UserManager(BaseUserManager):
-    def create_user(self,email,password=None,is_active=True,is_staff=False,is_admin=False):
+    def create_user(self,email, names,password=None,is_active=True,is_staff=False,is_admin=False):
         if not email:
             raise ValueError('Users must have a valid email')
         if not password:
@@ -22,6 +22,7 @@ class UserManager(BaseUserManager):
         
         email=self.normalize_email(email)
         user_obj=self.model(email=email)
+        user_obj.names = names
         user_obj.set_password(password)
         user_obj.staff=is_staff
         user_obj.admin=is_admin
@@ -29,17 +30,18 @@ class UserManager(BaseUserManager):
         user_obj.save(using=self._db)
         return user_obj
 
-    def create_staffuser(self,email,password=None):
-        user=self.create_user(email,password=password,is_staff=True)
+    def create_staffuser(self,email, names="",password=None):
+        user=self.create_user(email, names, password=password,is_staff=True)
         return user
 
-    def create_superuser(self,email,password=None):
-        user=self.create_user(email,password=password,is_staff=True,is_admin=True)
+    def create_superuser(self,email, names="",password=None):
+        user=self.create_user(email, names, password=password, is_staff=True, is_admin=True)
         return user
         
 
 class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(max_length=255,unique=True)
+    names = models.CharField(max_length=255, null=True, blank=True)
     roles = models.ManyToManyField(Role,blank=True)
     active=models.BooleanField(default=True)
     staff=models.BooleanField(default=False)
@@ -118,22 +120,33 @@ class Symptoms(models.Model):
 
 
 class ForumPost(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='forum_posts')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='forum_posts', null=True, blank=True)
+    username = models.CharField(max_length=255, null=True, blank=True)  # For anonymous users
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='department_post')
+    condition = models.ForeignKey(Condition, on_delete=models.CASCADE, related_name='condition_post')
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.email}'s post"
+        return f"{self.username or self.user.email}'s post"
+
 
 class Comment(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments', null=True, blank=True)
+    username = models.CharField(max_length=255, null=True, blank=True)  # For anonymous users
     post = models.ForeignKey(ForumPost, on_delete=models.CASCADE, related_name='comments')
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
+
 class Like(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='likes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='likes', null=True, blank=True)
+    username = models.CharField(max_length=255, null=True, blank=True)  # For anonymous likes
     post = models.ForeignKey(ForumPost, on_delete=models.CASCADE, related_name='likes')
 
     class Meta:
-        unique_together = ('user', 'post')
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'post'], name='unique_user_like'),
+            models.UniqueConstraint(fields=['username', 'post'], name='unique_anon_like')
+        ]
+

@@ -80,7 +80,7 @@ def login(request):
 
 
 #Registration
-def registration(request):
+def create_user(request):
     if request.method == 'POST':
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
@@ -97,6 +97,7 @@ def registration(request):
 
             user = User.objects.create_user(
                 email=body['email'],
+                names=body['names'],
                 password=body['password'],
             )
 
@@ -142,6 +143,77 @@ def registration(request):
     }, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
+def edit_user(request, user_id):
+    if request.method == 'POST':
+        try:
+            body_unicode = request.body.decode('utf-8')
+            body = json.loads(body_unicode)
+            print(body)
+
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return JsonResponse({
+                    'status': False,
+                    'message': 'User not found',
+                    'data': {
+                        'code': status.HTTP_404_NOT_FOUND
+                    }
+                }, status=status.HTTP_200_OK)
+
+            # Optional: check if email is changing and if it's already taken
+            new_email = body.get('email')
+            if new_email and new_email != user.email:
+                if User.objects.filter(email=new_email).exclude(id=user.id).exists():
+                    return JsonResponse({
+                        'status': False,
+                        'message': 'Email is already taken by another user.',
+                        'data': {}
+                    }, status=status.HTTP_200_OK)
+                user.email = new_email
+
+            # Update roles if provided
+            if 'roles' in body:
+                user.roles.clear()
+                for role_id in body['roles']:
+                    try:
+                        role = Role.objects.get(id=role_id)
+                        user.roles.add(role)
+                    except Role.DoesNotExist:
+                        pass
+
+            if 'names' in body:
+                user.names = body['names']
+            user.save()
+
+            return JsonResponse({
+                'status': True,
+                'message': 'User updated successfully',
+                'data': {
+                    'user_id': user.id,
+                    'email': user.email,
+                    'roles': list(user.roles.values_list('name', flat=True)),
+                    'code': status.HTTP_200_OK
+                }
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return JsonResponse({
+                'status': False,
+                'message': 'Update failed!',
+                'data': {
+                    'error': str(e),
+                    'code': status.HTTP_500_INTERNAL_SERVER_ERROR
+                }
+            }, status=status.HTTP_200_OK)
+
+    return JsonResponse({
+        'status': False,
+        'message': 'Invalid request method',
+        'data': {
+            'code': status.HTTP_405_METHOD_NOT_ALLOWED
+        }
+    }, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 class ConditionListView(ListAPIView):
@@ -267,63 +339,136 @@ class ConditionCreateView(APIView):
     queryset = Condition.objects.all()
 
     def post(self, request):
-        name = request.data.get('name')
-        department_id = request.data.get('department')
+        try:
+            name = request.data.get('name')
+            department_id = request.data.get('department')
 
-        condition = Condition.objects.create(name=name, department_id=department_id)
+            if not name or not department_id:
+                return Response({'status': False, 'message': 'Missing required fields: name or department'}, status=status.HTTP_200_OK)
 
-        attributes = []
-        i = 0
-        while f'attributes[{i}][title]' in request.data:
-            title = request.data.get(f'attributes[{i}][title]')
-            content = request.data.get(f'attributes[{i}][content]')
-            attr = Attribute.objects.create(condition=condition, title=title, content=content)
+            condition = Condition.objects.create(name=name, department_id=department_id)
 
-            j = 0
-            while f'attributes[{i}][images][{j}][file]' in request.FILES:
-                img_file = request.FILES.get(f'attributes[{i}][images][{j}][file]')
-                img_type = request.data.get(f'attributes[{i}][images][{j}][type]')
-                img_title = request.data.get(f'attributes[{i}][images][{j}][title]')
-                AttributeImage.objects.create(attribute=attr, image=img_file, type=img_type, title=img_title)
-                j += 1
+            i = 0
+            while f'attributes[{i}][title]' in request.data:
+                title = request.data.get(f'attributes[{i}][title]')
+                content = request.data.get(f'attributes[{i}][content]')
+                attr = Attribute.objects.create(condition=condition, title=title, content=content)
 
-            i += 1
+                j = 0
+                while f'attributes[{i}][images][{j}][file]' in request.FILES:
+                    img_file = request.FILES.get(f'attributes[{i}][images][{j}][file]')
+                    img_type = request.data.get(f'attributes[{i}][images][{j}][type]')
+                    img_title = request.data.get(f'attributes[{i}][images][{j}][title]')
+                    AttributeImage.objects.create(attribute=attr, image=img_file, type=img_type, title=img_title)
+                    j += 1
 
-        return Response({'status': True, 'message': 'Condition created successfully', 'data':{}})
+                i += 1
+
+            return Response({'status': True, 'message': 'Condition created successfully', 'data': {}}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'status': False, 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_200_OK)
+
+
+
+class ConditionEditView(APIView):
+    permission_classes = [DjangoModelPermissionsOrAnonReadOnly]
+    parser_classes = [MultiPartParser, FormParser]
+    queryset = Condition.objects.all()
+
+    def post(self, request, pk):
+        try:
+            condition = Condition.objects.filter(pk=pk).first()
+            if not condition:
+                return Response({'status': False, 'message': 'Condition not found'}, status=status.HTTP_200_OK)
+
+            name = request.data.get('name')
+            department_id = request.data.get('department')
+
+            if not name or not department_id:
+                return Response({'status': False, 'message': 'Missing required fields: name or department'}, status=status.HTTP_200_OK)
+
+            # Update condition
+            condition.name = name
+            condition.department_id = department_id
+            condition.save()
+
+            # Remove old attributes and their images
+            for attr in condition.attributes.all():
+                attr.images.all().delete()
+            condition.attributes.all().delete()
+
+            # Recreate attributes and images
+            i = 0
+            while f'attributes[{i}][title]' in request.data:
+                title = request.data.get(f'attributes[{i}][title]')
+                content = request.data.get(f'attributes[{i}][content]')
+                attr = Attribute.objects.create(condition=condition, title=title, content=content)
+
+                j = 0
+                while f'attributes[{i}][images][{j}][file]' in request.FILES:
+                    img_file = request.FILES.get(f'attributes[{i}][images][{j}][file]')
+                    img_type = request.data.get(f'attributes[{i}][images][{j}][type]')
+                    img_title = request.data.get(f'attributes[{i}][images][{j}][title]')
+                    AttributeImage.objects.create(attribute=attr, image=img_file, type=img_type, title=img_title)
+                    j += 1
+
+                i += 1
+
+            return Response({'status': True, 'message': 'Condition updated successfully', 'data': {}}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'status': False, 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_200_OK)
 
 
 class ForumPostListCreateView(APIView):
-    permission_classes = [IsAuthenticated]
-
     def get(self, request):
         posts = ForumPost.objects.all().order_by('-created_at')
         serializer = ForumPostSerializer(posts, many=True)
         return custom_response(data=serializer.data, message="Posts retrieved successfully.")
 
     def post(self, request):
-        post = ForumPost.objects.create(user=request.user, content=request.data.get('content'))
+        name = request.data.get('name')
+        content = request.data.get('content')
+        department_id = request.data.get('department')
+        condition_id = request.data.get('condition')
+
+        post = ForumPost.objects.create(
+            user=request.user if request.user.is_authenticated else None,
+            username=name if not request.user.is_authenticated else None,
+            content=content,
+            department_id=department_id,
+            condition_id=condition_id
+        )
         serializer = ForumPostSerializer(post)
         return custom_response(data=serializer.data, message='Post created successfully.')
 
-class CommentCreateView(APIView):
-    permission_classes = [IsAuthenticated]
 
+class CommentCreateView(APIView):
     def post(self, request, post_id):
         post = get_object_or_404(ForumPost, id=post_id)
+        name = request.data.get('name')
+        content = request.data.get('content')
+
         comment = Comment.objects.create(
-            user=request.user,
+            user=request.user if request.user.is_authenticated else None,
+            username=name if not request.user.is_authenticated else None,
             post=post,
-            content=request.data.get('content')
+            content=content
         )
         serializer = CommentSerializer(comment)
         return custom_response(data=serializer.data, message='Comment added.')
 
-class LikeToggleView(APIView):
-    permission_classes = [IsAuthenticated]
 
+class LikeToggleView(APIView):
     def post(self, request, post_id):
         post = get_object_or_404(ForumPost, id=post_id)
-        like, created = Like.objects.get_or_create(user=request.user, post=post)
+        name = request.data.get('name')
+
+        if request.user.is_authenticated:
+            like, created = Like.objects.get_or_create(user=request.user, post=post)
+        else:
+            like, created = Like.objects.get_or_create(user=None, username=name, post=post)
 
         if not created:
             like.delete()
@@ -358,7 +503,7 @@ class ChangePasswordView(UpdateAPIView):
     serializer_class = ChangePasswordSerializer
     queryset = User.objects.all()
     model = User
-    # permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated)
 
     def get_object(self, queryset=None):
         return User.objects.get(id=self.request.data['user_id'])

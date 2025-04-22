@@ -6,7 +6,7 @@ from .models import *
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email',  'is_active', 'is_staff', 'is_admin', 'roles')
+        fields = ('id', 'email', 'names',  'is_active', 'is_staff', 'is_admin', 'roles')
         
 
     def to_representation(self, instance):
@@ -37,10 +37,18 @@ class ConditionSerializer(serializers.ModelSerializer):
         model = Condition
         fields = '__all__'
 
+class AttributeImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AttributeImage
+        fields = ['id', 'title', 'type', 'image']
+
+
 class AttributeSerializer(serializers.ModelSerializer):
+    images = AttributeImageSerializer(many=True, read_only=True)
+
     class Meta:
         model = Attribute
-        fields = ['id', 'title', 'content']
+        fields = ['id', 'title', 'content', 'images']
 
 class ConditionSerializer2(serializers.ModelSerializer):
     attributes = AttributeSerializer(many=True, read_only=True)  # uses related_name='attributes'
@@ -70,23 +78,33 @@ class SymptomSerializer2(serializers.ModelSerializer):
         return data
 
 class CommentSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField(read_only=True)
+    user_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
-        fields = ['id', 'user', 'content', 'created_at']
+        fields = ['id', 'user_display', 'content', 'created_at']
+
+    def get_user_display(self, obj):
+        return obj.user.email if obj.user else obj.username
+
 
 class ForumPostSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField(read_only=True)
+    user_display = serializers.SerializerMethodField()
     comments = CommentSerializer(many=True, read_only=True)
     likes_count = serializers.SerializerMethodField()
+    department = DepartmentSerializer(read_only=True)
+    condition = ConditionSerializer(read_only=True)
 
     class Meta:
         model = ForumPost
-        fields = ['id', 'user', 'content', 'created_at', 'comments', 'likes_count']
+        fields = ['id', 'user_display', 'department', 'condition', 'content', 'created_at', 'comments', 'likes_count']
+
+    def get_user_display(self, obj):
+        return obj.user.email if obj.user else obj.username
 
     def get_likes_count(self, obj):
         return obj.likes.count()
+
 
 class ChangePasswordSerializer(serializers.Serializer):
     model = User
