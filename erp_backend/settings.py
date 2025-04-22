@@ -136,10 +136,10 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'erp_backend/static/')
 ]
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
-STATIC_URL = '/static/'
+STATIC_URL = '/who/static/'
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-MEDIA_URL = '/media/'
+MEDIA_URL = '/who/media/'
 
 CORS_ORIGIN_ALLOW_ALL=True
 
