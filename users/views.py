@@ -422,6 +422,9 @@ class ConditionEditView(APIView):
 
 
 class ForumPostListCreateView(APIView):
+    def get_queryset(self):
+        return ForumPost.objects.all().order_by('-created_at')
+        
     def get(self, request):
         posts = ForumPost.objects.all().order_by('-created_at')
         serializer = ForumPostSerializer(posts, many=True)
