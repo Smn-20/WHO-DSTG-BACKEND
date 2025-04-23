@@ -443,6 +443,7 @@ class ConditionEditView(APIView):
 
 
 class ForumPostListCreateView(APIView):
+    permission_classes = [AllowAny]
     def get_queryset(self):
         return ForumPost.objects.all().order_by('-created_at')
         
@@ -507,6 +508,18 @@ class LikeToggleView(APIView):
 class SymptomListView(ListAPIView):
     queryset = Symptoms.objects.all()
     serializer_class = SymptomSerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+
+        response = {
+            'status': True,
+            'message': 'Symptoms fetched successfully',
+            'data': serializer.data
+        }
+
+        return Response(response, status=status.HTTP_200_OK)
 
 class SymptomCreateView(CreateAPIView):
     queryset = Symptoms.objects.all()
