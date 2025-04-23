@@ -7,6 +7,7 @@ urlpatterns = [
     path('roles',RoleListView.as_view()),
     path('create-condition',ConditionCreateView.as_view()),
     path('edit-condition/<int:pk>', ConditionEditView.as_view()),
+    path('edit-department/<int:pk>', DepartmentUpdateView.as_view()),
     path('create-symptom/',SymptomCreateView.as_view()),
     path('conditions/',ConditionListView.as_view()),
     path('departments/',DepartmentListView.as_view()),
@@ -21,6 +22,6 @@ urlpatterns = [
     path('conditions-by-symptoms/', ConditionBySymptoms.as_view()),
     path('conditions-by-department/<int:department_id>/', ConditionByDepartment.as_view()),
     path('forum/', ForumPostListCreateView.as_view(), name='forum_list_create'),
-    path('forum/<int:post_id>/comment/', CommentCreateView.as_view(), name='comment_create'),
-    path('forum/<int:post_id>/like-toggle/', LikeToggleView.as_view(), name='like_toggle'),
+    path('forum/<int:post_id>/comment/', CommentCreateView.as_view()),
+    path('forum/<int:post_id>/like-toggle/', LikeToggleView.as_view()),
 ]

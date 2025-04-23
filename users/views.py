@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework.generics import ListAPIView, RetrieveAPIView, CreateAPIView, UpdateAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView, CreateAPIView, UpdateAPIView, RetrieveUpdateAPIView
 from rest_framework.views import APIView
 from .models import *
 from rest_framework.permissions import IsAuthenticated
@@ -11,7 +11,7 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.permissions import DjangoModelPermissionsOrAnonReadOnly
+from rest_framework.permissions import DjangoModelPermissionsOrAnonReadOnly, AllowAny
 # Create your views here.
 
 def custom_response(data=None, message='', status=True):
@@ -270,6 +270,27 @@ class DepartmentCreateView(CreateAPIView):
             'data': serializer.errors
         }, status=status.HTTP_201_CREATED)
 
+class DepartmentUpdateView(APIView):
+    queryset = Department.objects.all()
+    def post(self, request, pk, *args, **kwargs):
+        department = get_object_or_404(Department, pk=pk)
+        serializer = DepartmentSerializer(department, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'status': True,
+                'message': 'Department updated successfully',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+
+        return Response({
+            'status': False,
+            'message': 'Department update failed',
+            'data': serializer.errors
+        }, status=status.HTTP_200_OK)
+
+
 
 class ConditionBySymptoms(ListAPIView):
     serializer_class = ConditionSerializer
@@ -448,6 +469,7 @@ class ForumPostListCreateView(APIView):
 
 
 class CommentCreateView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request, post_id):
         post = get_object_or_404(ForumPost, id=post_id)
         name = request.data.get('name')
@@ -464,6 +486,7 @@ class CommentCreateView(APIView):
 
 
 class LikeToggleView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request, post_id):
         post = get_object_or_404(ForumPost, id=post_id)
         name = request.data.get('name')
