@@ -12,7 +12,7 @@ urlpatterns = [
     path('conditions/',ConditionListView.as_view()),
     path('departments/',DepartmentListView.as_view()),
     path('create-department',DepartmentCreateView.as_view()),
-    path('symptoms',SymptomListView.as_view()),
+    path('symptoms/',SymptomListView.as_view()),
     path('symptom/<id>/',SymptomRetrieveView.as_view()),
     path('condition/<id>/',ConditionRetrieveView.as_view()),
     path('create-user',csrf_exempt(create_user)),

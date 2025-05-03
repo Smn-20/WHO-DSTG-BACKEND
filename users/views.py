@@ -316,21 +316,41 @@ class ConditionBySymptoms(ListAPIView):
                 'data': {}
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Prefetch conditions once and reduce DB hits
-        symptoms = Symptoms.objects.prefetch_related('conditions').filter(id__in=symptom_ids)
-        condition_sets = [set(symptom.conditions.all()) for symptom in symptoms]
+        # Get original symptoms and their groups
+        input_symptoms = Symptoms.objects.filter(id__in=symptom_ids).prefetch_related('group', 'conditions')
+        related_groups = GroupSymptom.objects.filter(symptoms__in=input_symptoms).distinct()
 
-        if condition_sets:
-            common_conditions = set.intersection(*condition_sets)
-        else:
-            common_conditions = Condition.objects.none()
+        # Get all symptoms in those groups
+        group_symptoms = Symptoms.objects.filter(group__in=related_groups).distinct()
 
-        serializer = self.get_serializer(common_conditions, many=True)
+        # Combine input symptoms and group-related symptoms
+        all_considered_symptoms = set(input_symptoms) | set(group_symptoms)
+
+        # Fetch all conditions linked to these symptoms
+        candidate_conditions = Condition.objects.filter(symptoms__in=all_considered_symptoms).distinct()
+
+        # Filter conditions: only return those that are linked to *at least one symptom from each input symptom or its group*
+        valid_conditions = []
+        for condition in candidate_conditions:
+            condition_symptoms = set(condition.symptoms.all())
+            match = True
+            for original_symptom in input_symptoms:
+                # Include all symptoms in the same group as current original symptom
+                group_symptom_set = set(Symptoms.objects.filter(group__in=original_symptom.group.all()))
+                # Check if any symptom from this group (or itself) exists in condition's symptoms
+                if not (group_symptom_set | {original_symptom}) & condition_symptoms:
+                    match = False
+                    break
+            if match:
+                valid_conditions.append(condition)
+
+        serializer = self.get_serializer(valid_conditions, many=True)
         return Response({
             'status': True,
             'message': 'Conditions fetched successfully',
             'data': serializer.data
         }, status=status.HTTP_200_OK)
+
 
 
 class ConditionByDepartment(ListAPIView):

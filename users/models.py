@@ -115,8 +115,15 @@ class AttributeImage(models.Model):
     image = models.ImageField(upload_to='attribute_images/')
 
 
+class GroupSymptom(models.Model):
+    name = models.CharField(max_length=250, unique=True)
+
+    def __str__(self):
+        return f"{self.name}"
+
 class Symptoms(models.Model):
     name = models.CharField(max_length=250, unique=True, db_index=True)
+    group = models.ManyToManyField(GroupSymptom, related_name='symptoms', blank=True)
     conditions = models.ManyToManyField(
         Condition,
         blank=True,

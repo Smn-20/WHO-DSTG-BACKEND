@@ -7,13 +7,18 @@ User=get_user_model()
 
 admin.site.register(User)
 admin.site.register(Role)
-admin.site.register(Condition)
 admin.site.register(Attribute)
 admin.site.register(Department)
 admin.site.register(AttributeImage)
 admin.site.register(ForumPost)
 admin.site.register(Comment)
 admin.site.register(Like)
+admin.site.register(GroupSymptom)
+
 @admin.register(Symptoms)
 class SymptomsAdmin(admin.ModelAdmin):
+    search_fields = ['name']
+
+@admin.register(Condition)
+class ConditionAdmin(admin.ModelAdmin):
     search_fields = ['name']

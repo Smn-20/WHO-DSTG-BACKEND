@@ -1,39 +1,44 @@
 import os
 import pandas as pd
 from django.core.management.base import BaseCommand
-from users.models import Symptoms, Condition
+from users.models import Symptoms, GroupSymptom
 
 class Command(BaseCommand):
-    help = 'Load symptoms from Excel sheets into the database'
+    help = 'Create GroupSymptoms from Excel columns and assign existing Symptoms to them'
 
     def handle(self, *args, **kwargs):
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(base_dir, 'dentistry_symptoms.xlsx')
+        file_path = os.path.join(base_dir, 'my_symptoms_grouped.xlsx')
 
         # Read all sheets
-        excel_data = pd.read_excel(file_path, sheet_name=None, header=None)
+        excel_data = pd.read_excel(file_path, sheet_name=None, header=0)
 
         for sheet_name, sheet_df in excel_data.items():
-            if sheet_df.shape[0] < 3:
-                self.stdout.write(self.style.WARNING(f"Sheet '{sheet_name}' does not have enough rows. Skipping."))
-                continue
+            self.stdout.write(self.style.SUCCESS(f"Processing sheet: {sheet_name}"))
 
-            condition_name = str(sheet_df.iloc[0, 0]).strip()
-            try:
-                condition = Condition.objects.get(name__iexact=condition_name)
-            except Condition.DoesNotExist:
-                self.stdout.write(self.style.WARNING(f"Condition '{condition_name}' does not exist. Skipping sheet."))
-                continue
+            for column in sheet_df.columns:
+                group_name = str(column).strip()
+                if not group_name:
+                    continue
 
-            symptoms_row = str(sheet_df.iloc[2, 0])
-            symptoms = [sym.strip().strip('#') for sym in symptoms_row.split('#') if sym.strip()]
-            
-            for symptom_name in symptoms:
-                symptom, created = Symptoms.objects.get_or_create(name=symptom_name)
-                symptom.conditions.add(condition)
-                symptom.save()
-                action = "Created" if created else "Updated"
-                self.stdout.write(self.style.SUCCESS(f"{action} symptom '{symptom_name}' for condition '{condition_name}'"))
+                group, _ = GroupSymptom.objects.get_or_create(name=group_name)
 
-        self.stdout.write(self.style.SUCCESS('All symptoms processed successfully.'))
+                for cell in sheet_df[column].dropna():
+                    symptom_text = str(cell).strip()
+                    if not symptom_text:
+                        continue
 
+                    matched_symptoms = Symptoms.objects.filter(name__iexact=symptom_text)
+
+                    if not matched_symptoms.exists():
+                        matched_symptoms = Symptoms.objects.filter(name__icontains=symptom_text)
+
+                    if matched_symptoms.exists():
+                        for symptom in matched_symptoms:
+                            symptom.group.add(group)
+                            symptom.save()
+                        self.stdout.write(self.style.SUCCESS(f"Linked symptom(s) '{symptom_text}' to group '{group_name}'"))
+                    else:
+                        self.stdout.write(self.style.WARNING(f"Symptom '{symptom_text}' not found in DB."))
+
+        self.stdout.write(self.style.SUCCESS('Group symptoms creation and assignment completed.'))
