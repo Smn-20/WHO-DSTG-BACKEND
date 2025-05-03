@@ -7,6 +7,7 @@ from .serializers import *
 from django.http import HttpResponse,JsonResponse
 import json
 from django.shortcuts import get_object_or_404
+from django.db.models import Prefetch
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
@@ -298,14 +299,12 @@ class ConditionBySymptoms(ListAPIView):
 
     def get(self, request, *args, **kwargs):
         symptom_ids = request.query_params.get('symptom_ids')
-        
+
         if not symptom_ids:
             return Response({
                 'status': False,
                 'message': 'No symptom IDs provided',
-                'data': {
-                    'code': status.HTTP_400_BAD_REQUEST
-                }
+                'data': {'code': status.HTTP_400_BAD_REQUEST}
             }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -317,23 +316,22 @@ class ConditionBySymptoms(ListAPIView):
                 'data': {}
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        symptom_conditions = []
-        for symptom_id in symptom_ids:
-            conditions = Condition.objects.filter(symptoms__id=symptom_id)
-            symptom_conditions.append(set(conditions))
+        # Prefetch conditions once and reduce DB hits
+        symptoms = Symptoms.objects.prefetch_related('conditions').filter(id__in=symptom_ids)
+        condition_sets = [set(symptom.conditions.all()) for symptom in symptoms]
 
-        if symptom_conditions:
-            common_conditions = set.intersection(*symptom_conditions)
+        if condition_sets:
+            common_conditions = set.intersection(*condition_sets)
         else:
             common_conditions = Condition.objects.none()
 
-        serializer = ConditionSerializer(common_conditions, many=True)
-
+        serializer = self.get_serializer(common_conditions, many=True)
         return Response({
             'status': True,
             'message': 'Conditions fetched successfully',
             'data': serializer.data
         }, status=status.HTTP_200_OK)
+
 
 class ConditionByDepartment(ListAPIView):
     serializer_class = ConditionSerializer
@@ -352,6 +350,44 @@ class ConditionByDepartment(ListAPIView):
             'message': 'Conditions fetched successfully',
             'data': serializer.data
         }, status=status.HTTP_200_OK)
+
+
+
+class SymptomsByDepartment(ListAPIView):
+    serializer_class = SymptomSerializer
+    queryset = Symptoms.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        department_id = request.query_params.get('department_id')
+
+        if not department_id:
+            return Response({
+                'status': False,
+                'message': 'No department ID provided',
+                'data': {'code': status.HTTP_400_BAD_REQUEST}
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            department_id = int(department_id)
+        except ValueError:
+            return Response({
+                'status': False,
+                'message': 'Invalid department ID format',
+                'data': {}
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Prefetch conditions and their departments in a single query
+        symptoms = Symptoms.objects.prefetch_related(
+            Prefetch('conditions', queryset=Condition.objects.select_related('department'))
+        ).filter(conditions__department__id=department_id).distinct()
+
+        serializer = self.get_serializer(symptoms, many=True)
+        return Response({
+            'status': True,
+            'message': 'Symptoms fetched successfully',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+
 
 
 class ConditionCreateView(APIView):

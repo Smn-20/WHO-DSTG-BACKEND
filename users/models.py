@@ -75,15 +75,21 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class Department(models.Model):
-    name = models.CharField(max_length=250, unique=True)
-    
+    name = models.CharField(max_length=250, unique=True, db_index=True)
+
     def __str__(self):
-        return str(self.id) + '-' +self.name
+        return f"{self.id}-{self.name}"
         
 
 class Condition(models.Model):
-    name = models.CharField(max_length=255,unique=True)
-    department = models.ForeignKey(Department, null= True,blank=True, on_delete=models.SET_NULL)
+    name = models.CharField(max_length=255, unique=True, db_index=True)
+    department = models.ForeignKey(
+        Department,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='conditions'
+    )
 
     def __str__(self):
         return self.name
@@ -110,13 +116,15 @@ class AttributeImage(models.Model):
 
 
 class Symptoms(models.Model):
-    name = models.CharField(max_length=250, unique=True)
-    conditions = models.ManyToManyField(Condition,blank=True)
-    further_management = models.TextField(null=True, blank=True)
-    referral_criteria = models.TextField(null=True, blank=True)
-    
+    name = models.CharField(max_length=250, unique=True, db_index=True)
+    conditions = models.ManyToManyField(
+        Condition,
+        blank=True,
+        related_name='symptoms'
+    )
+
     def __str__(self):
-        return str(self.id) + '-' +self.name
+        return f"{self.id}-{self.name}"
 
 
 class ForumPost(models.Model):
