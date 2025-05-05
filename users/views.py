@@ -630,7 +630,7 @@ class ChangePasswordView(UpdateAPIView):
     serializer_class = ChangePasswordSerializer
     queryset = User.objects.all()
     model = User
-    permission_classes = (IsAuthenticated)
+    permission_classes = (IsAuthenticated,)
 
     def get_object(self, queryset=None):
         return User.objects.get(id=self.request.data['user_id'])
