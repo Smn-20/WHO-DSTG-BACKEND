@@ -33,6 +33,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
 
 class ConditionSerializer(serializers.ModelSerializer):
+    department = DepartmentSerializer(read_only=True)
     class Meta:
         model = Condition
         fields = '__all__'

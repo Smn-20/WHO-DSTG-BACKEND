@@ -455,47 +455,79 @@ class ConditionEditView(APIView):
 
     def post(self, request, pk):
         try:
-            condition = Condition.objects.filter(pk=pk).first()
-            if not condition:
-                return Response({'status': False, 'message': 'Condition not found'}, status=status.HTTP_200_OK)
-
+            condition = Condition.objects.get(pk=pk)
             name = request.data.get('name')
             department_id = request.data.get('department')
 
             if not name or not department_id:
                 return Response({'status': False, 'message': 'Missing required fields: name or department'}, status=status.HTTP_200_OK)
 
-            # Update condition
             condition.name = name
             condition.department_id = department_id
             condition.save()
 
-            # Remove old attributes and their images
-            for attr in condition.attributes.all():
-                attr.images.all().delete()
-            condition.attributes.all().delete()
-
-            # Recreate attributes and images
+            received_attr_ids = []
             i = 0
             while f'attributes[{i}][title]' in request.data:
+                attr_id = request.data.get(f'attributes[{i}][id]')
                 title = request.data.get(f'attributes[{i}][title]')
                 content = request.data.get(f'attributes[{i}][content]')
-                attr = Attribute.objects.create(condition=condition, title=title, content=content)
 
+                if attr_id:
+                    attr = Attribute.objects.get(id=attr_id, condition=condition)
+                    attr.title = title
+                    attr.content = content
+                    attr.save()
+                else:
+                    attr = Attribute.objects.create(condition=condition, title=title, content=content)
+
+                received_attr_ids.append(attr.id)
+
+                received_img_ids = []
                 j = 0
-                while f'attributes[{i}][images][{j}][file]' in request.FILES:
-                    img_file = request.FILES.get(f'attributes[{i}][images][{j}][file]')
-                    img_type = request.data.get(f'attributes[{i}][images][{j}][type]')
+                while f'attributes[{i}][images][{j}][title]' in request.data:
+                    img_id = request.data.get(f'attributes[{i}][images][{j}][id]')
                     img_title = request.data.get(f'attributes[{i}][images][{j}][title]')
-                    AttributeImage.objects.create(attribute=attr, image=img_file, type=img_type, title=img_title)
+                    img_type = request.data.get(f'attributes[{i}][images][{j}][type]')
+                    img_file = request.FILES.get(f'attributes[{i}][images][{j}][file]')
+                    img_url = request.data.get(f'attributes[{i}][images][{j}][image]')
+                    if img_id:
+                        if img_url:
+                            print('okk')
+                            # If image URL is provided, assume it's unchanged
+                            received_img_ids.append(int(img_id))
+                        elif img_file:
+                            # Image is replaced
+                            image = AttributeImage.objects.get(id=img_id, attribute=attr)
+                            image.image = img_file
+                            image.title = img_title
+                            image.type = img_type
+                            image.save()
+                            received_img_ids.append(image.id)
+                    elif img_file:
+                        # New image
+                        image = AttributeImage.objects.create(
+                            attribute=attr,
+                            title=img_title,
+                            type=img_type,
+                            image=img_file
+                        )
+                        received_img_ids.append(image.id)
+
                     j += 1
 
+                # Delete images removed on the frontend
+                attr.images.exclude(id__in=received_img_ids).delete()
                 i += 1
 
-            return Response({'status': True, 'message': 'Condition updated successfully', 'data': {}}, status=status.HTTP_200_OK)
+            # Delete attributes removed on the frontend
+            condition.attributes.exclude(id__in=received_attr_ids).delete()
+
+            return Response({'status': True, 'message': 'Condition updated successfully'}, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response({'status': False, 'message': f'An error occurred: {str(e)}'}, status=status.HTTP_200_OK)
+
 
 
 class ForumPostListCreateView(APIView):
