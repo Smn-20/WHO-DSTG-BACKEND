@@ -21,7 +21,7 @@ urlpatterns = [
     path('change-password', ChangePasswordView.as_view()),
     path('conditions-by-symptoms', ConditionBySymptoms.as_view()),
     path('symptoms-by-department', SymptomsByDepartment.as_view()),
-    path('conditions-by-department/<int:department_id>/', ConditionByDepartment.as_view()),
+    path('conditions-by-department/<int:department_id>', ConditionByDepartment.as_view()),
     path('forum', ForumPostListCreateView.as_view(), name='forum_list_create'),
     path('forum/<int:post_id>/comment', CommentCreateView.as_view()),
     path('forum/<int:post_id>/like-toggle', LikeToggleView.as_view()),
