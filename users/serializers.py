@@ -57,6 +57,7 @@ class AttributeSerializer2(serializers.ModelSerializer):
         fields = ['id', 'title', 'content']
 
 class ConditionSerializer2(serializers.ModelSerializer):
+    department = DepartmentSerializer(read_only=True)
     attributes = AttributeSerializer(many=True, read_only=True)  # uses related_name='attributes'
 
     class Meta:
@@ -64,6 +65,7 @@ class ConditionSerializer2(serializers.ModelSerializer):
         fields = ['id', 'name', 'department', 'attributes']
 
 class ConditionSerializer3(serializers.ModelSerializer):
+    department = DepartmentSerializer(read_only=True)
     first_attribute = serializers.SerializerMethodField()
 
     class Meta:
