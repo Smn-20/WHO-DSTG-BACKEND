@@ -1,5 +1,5 @@
 from rest_framework import serializers
-
+from django.db.models import Q
 from .models import *
 
 
@@ -51,12 +51,56 @@ class AttributeSerializer(serializers.ModelSerializer):
         model = Attribute
         fields = ['id', 'title', 'content', 'images']
 
+class AttributeSerializer2(serializers.ModelSerializer):
+    class Meta:
+        model = Attribute
+        fields = ['id', 'title', 'content']
+
 class ConditionSerializer2(serializers.ModelSerializer):
     attributes = AttributeSerializer(many=True, read_only=True)  # uses related_name='attributes'
 
     class Meta:
         model = Condition
         fields = ['id', 'name', 'department', 'attributes']
+
+class ConditionSerializer3(serializers.ModelSerializer):
+    first_attribute = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Condition
+        fields = '__all__'  # Alternatively: list fields explicitly if you want to control order
+
+    def get_first_attribute(self, obj):
+        first_attr = obj.attributes.first()  # uses related_name='attributes'
+        if first_attr:
+            return AttributeSerializer2(first_attr).data
+        return None
+
+class ConditionSerializer4(serializers.ModelSerializer):
+    department = DepartmentSerializer(read_only=True)
+    attributes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Condition
+        fields = '__all__'
+
+    def get_attributes(self, obj):
+        considered_symptom_ids = self.context.get('considered_symptom_ids', [])
+
+        if not considered_symptom_ids:
+            return []
+
+        # Get symptom names from IDs
+        symptom_names = Symptoms.objects.filter(id__in=considered_symptom_ids).values_list('name', flat=True)
+
+        # Build a Q object to search for any symptom name in the content
+        query = Q()
+        for name in symptom_names:
+            query |= Q(content__icontains=name)
+
+        # Filter the condition's attributes based on symptom name matches
+        attributes = obj.attributes.filter(query).distinct()
+        return AttributeSerializer2(attributes, many=True).data
 
 class SymptomSerializer(serializers.ModelSerializer):
     class Meta:

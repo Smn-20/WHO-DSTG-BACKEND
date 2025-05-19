@@ -219,7 +219,7 @@ def edit_user(request, user_id):
 
 class ConditionListView(ListAPIView):
     queryset = Condition.objects.all()
-    serializer_class = ConditionSerializer
+    serializer_class = ConditionSerializer3
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -294,7 +294,7 @@ class DepartmentUpdateView(APIView):
 
 
 class ConditionBySymptoms(ListAPIView):
-    serializer_class = ConditionSerializer
+    serializer_class = ConditionSerializer4
     queryset = Condition.objects.all()
 
     def get(self, request, *args, **kwargs):
@@ -344,7 +344,12 @@ class ConditionBySymptoms(ListAPIView):
             if match:
                 valid_conditions.append(condition)
 
-        serializer = self.get_serializer(valid_conditions, many=True)
+        all_considered_symptom_ids = [s.id for s in all_considered_symptoms]
+        serializer = self.get_serializer(
+            valid_conditions,
+            many=True,
+            context={'considered_symptom_ids': all_considered_symptom_ids}
+)
         return Response({
             'status': True,
             'message': 'Conditions fetched successfully',
@@ -354,7 +359,7 @@ class ConditionBySymptoms(ListAPIView):
 
 
 class ConditionByDepartment(ListAPIView):
-    serializer_class = ConditionSerializer
+    serializer_class = ConditionSerializer3
 
     def get_queryset(self):
         department_id = self.kwargs.get('department_id')
