@@ -80,29 +80,34 @@ class ConditionSerializer3(serializers.ModelSerializer):
 
 class ConditionSerializer4(serializers.ModelSerializer):
     department = DepartmentSerializer(read_only=True)
-    attributes = serializers.SerializerMethodField()
+    first_attribute = serializers.SerializerMethodField()
 
     class Meta:
         model = Condition
         fields = '__all__'
 
-    def get_attributes(self, obj):
+    def get_first_attribute(self, obj):
         considered_symptom_ids = self.context.get('considered_symptom_ids', [])
 
         if not considered_symptom_ids:
-            return []
+            return None
 
-        # Get symptom names from IDs
-        symptom_names = Symptoms.objects.filter(id__in=considered_symptom_ids).values_list('name', flat=True)
+        # Get symptom names
+        symptom_names = Symptoms.objects.filter(
+            id__in=considered_symptom_ids
+        ).values_list('name', flat=True)
 
-        # Build a Q object to search for any symptom name in the content
+        # Build a case-insensitive query
         query = Q()
         for name in symptom_names:
             query |= Q(content__icontains=name)
 
-        # Filter the condition's attributes based on symptom name matches
-        attributes = obj.attributes.filter(query).distinct()
-        return AttributeSerializer2(attributes, many=True).data
+        # Get the first matching attribute
+        attribute = obj.attributes.filter(query).first()
+
+        if attribute:
+            return AttributeSerializer2(attribute).data
+        return None
 
 class SymptomSerializer(serializers.ModelSerializer):
     class Meta:
