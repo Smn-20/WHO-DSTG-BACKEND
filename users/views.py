@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework.generics import ListAPIView, RetrieveAPIView, CreateAPIView, UpdateAPIView, RetrieveUpdateAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView, CreateAPIView, UpdateAPIView, DestroyAPIView
 from rest_framework.views import APIView
 from .models import *
 from rest_framework.permissions import IsAuthenticated
@@ -270,6 +270,10 @@ class DepartmentCreateView(CreateAPIView):
             'message': 'Department creation failed',
             'data': serializer.errors
         }, status=status.HTTP_201_CREATED)
+
+class DepartmentDeleteAPIView(DestroyAPIView):
+    queryset = Department.objects.all()
+    lookup_field = 'pk'  # or 'id' or 'name' depending on your design
 
 class DepartmentUpdateView(APIView):
     queryset = Department.objects.all()

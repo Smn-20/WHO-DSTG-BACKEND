@@ -8,6 +8,7 @@ urlpatterns = [
     path('create-condition',ConditionCreateView.as_view()),
     path('edit-condition/<int:pk>', ConditionEditView.as_view()),
     path('edit-department/<int:pk>', DepartmentUpdateView.as_view()),
+    path('department/<uuid:pk>/', DepartmentDeleteAPIView.as_view()),
     path('create-symptom/',SymptomCreateView.as_view()),
     path('conditions/',ConditionListView.as_view()),
     path('departments/',DepartmentListView.as_view()),
