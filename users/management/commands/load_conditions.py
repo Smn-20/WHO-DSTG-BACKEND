@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from django.core.management.base import BaseCommand
-from users.models import Condition, Attribute
+from users.models import Condition, Attribute, Department
 
 class Command(BaseCommand):
     help = 'Load conditions and their attributes from an Excel file into the database.'
@@ -16,19 +16,26 @@ class Command(BaseCommand):
         for sheet_name in xl.sheet_names:
             df = xl.parse(sheet_name, header=None)
 
-            # Skip empty sheets
             if df.empty:
                 continue
 
-            # Extract condition name from first cell (A1)
+            # Get condition name
             condition_name = str(df.iloc[0, 0]).strip()
             if not condition_name:
                 continue
 
-            condition, _ = Condition.objects.get_or_create(name=condition_name)
+            condition, created = Condition.objects.get_or_create(name=condition_name)
 
-            # Extract attribute titles from second row (index 1)
-            # Extract attribute contents from third row (index 2)
+            # Assign department with id=8 if condition was created
+            if created:
+                try:
+                    department = Department.objects.get(id=8)
+                    condition.department = department
+                    condition.save()
+                except Department.DoesNotExist:
+                    self.stdout.write(self.style.WARNING("Department with id=8 does not exist. Skipping department assignment."))
+
+            # Check if there are enough rows for titles and contents
             if df.shape[0] < 3:
                 self.stdout.write(self.style.WARNING(f"Sheet '{sheet_name}' does not have enough rows. Skipped."))
                 continue
